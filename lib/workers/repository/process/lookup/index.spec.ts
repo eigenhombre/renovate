@@ -1442,8 +1442,8 @@ describe('workers/repository/process/lookup/index', () => {
       // does not have our current version!
       expect(res.updates).toHaveLength(0);
     });
-    it('misses update with revoked current version 2', async () => {
-      config.currentValue = '~> 6.0.0';
+    it('detects update with extant current version 2', async () => {
+      config.currentValue = '^6.0.0';
       config.depName = 'some/action';
       config.lockedVersion = '6.0.0';
       config.datasource = datasourceGithubReleases.id;
@@ -1453,7 +1453,7 @@ describe('workers/repository/process/lookup/index', () => {
             version: '6.0.0',
           },
           {
-            version: '6.14.2',
+            version: '7.0.0',
           },
         ],
       });
@@ -1461,14 +1461,14 @@ describe('workers/repository/process/lookup/index', () => {
       expect(res.updates).toHaveLength(1);
     });
     it('misses update with revoked current version 2', async () => {
-      config.currentValue = '~> 6.0.0';
+      config.currentValue = '^6.0.0';
       config.depName = 'some/action';
       config.lockedVersion = '6.0.0';
       config.datasource = datasourceGithubReleases.id;
       githubReleases.getReleases.mockResolvedValueOnce({
         releases: [
           {
-            version: '6.14.2',
+            version: '7.0.0',
           },
         ],
       });
