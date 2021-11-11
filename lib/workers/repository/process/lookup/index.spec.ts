@@ -15,16 +15,20 @@ import { id as datasourceGithubTagsId } from '../../../../datasource/github-tags
 import { id as datasourceNpmId } from '../../../../datasource/npm';
 import { id as datasourcePackagistId } from '../../../../datasource/packagist';
 import { PypiDatasource } from '../../../../datasource/pypi';
+import * as datasourceRubygems from '../../../../datasource/rubygems';
+import { id as datasourceRubygemsId } from '../../../../datasource/rubygems';
 import { id as dockerVersioningId } from '../../../../versioning/docker';
 import { id as gitVersioningId } from '../../../../versioning/git';
 import { id as npmVersioningId } from '../../../../versioning/npm';
 import { id as pep440VersioningId } from '../../../../versioning/pep440';
 import { id as poetryVersioningId } from '../../../../versioning/poetry';
+import { id as rubyVersioningId } from '../../../../versioning/ruby';
 import type { LookupUpdateConfig } from './types';
 import * as lookup from '.';
 
 jest.mock('../../../../datasource/docker');
 jest.mock('../../../../datasource/github-releases');
+jest.mock('../../../../datasource/rubygems');
 
 const fixtureRoot = '../../../../config/npm';
 const qJson = {
@@ -39,7 +43,8 @@ const vueJson = loadJsonFixture('vue.json', fixtureRoot);
 const webpackJson = loadJsonFixture('webpack.json', fixtureRoot);
 
 const docker = mocked(datasourceDocker) as any;
-docker.defaultRegistryUrls = ['https://index.docker.io'];
+// docker.defaultRegistryUrls = ['https://index.docker.io'];
+const rubygems = mocked(datasourceRubygems) as any;
 const githubReleases = mocked(datasourceGithubReleases);
 
 Object.assign(githubReleases, { defaultRegistryUrls: ['https://github.com'] });
@@ -1398,6 +1403,57 @@ describe('workers/repository/process/lookup/index', () => {
       const res = await lookup.lookupUpdates(config);
       // FIXME: explicit assert condition
       expect(res).toMatchSnapshot();
+    });
+    it('detects update with extant current version', async () => {
+      config.currentValue = '~> 6.0.0';
+      config.datasource = datasourceRubygemsId;
+      config.depName = 'some-dep';
+      config.lockedVersion = '6.0.0';
+      config.versioning = rubyVersioningId;
+      rubygems.getReleases.mockResolvedValueOnce({
+        releases: [
+          {
+            version: '6.0.0',
+          },
+          {
+            version: '6.14.2',
+          },
+        ],
+      });
+      const res = await lookup.lookupUpdates(config);
+      expect(res.updates).toHaveLength(1);
+    });
+    it('misses update with revoked current version', async () => {
+      // FIXME: Should detect this update event if datasource does not have our
+      // current version.
+      config.currentValue = '~> 6.0.0';
+      config.datasource = datasourceRubygemsId;
+      config.depName = 'some-dep';
+      config.lockedVersion = '6.0.0';
+      config.versioning = rubyVersioningId;
+      rubygems.getReleases.mockResolvedValueOnce({
+        releases: [
+          {
+            version: '6.14.2',
+          },
+        ],
+      });
+      const res = await lookup.lookupUpdates(config);
+      expect(res.updates).toHaveLength(0);
+    });
+    it('misses update with revoked current version 2', async () => {
+      config.currentValue = '1.4.4';
+      config.depName = 'some/action';
+      config.datasource = datasourceGithubReleases.id;
+      githubReleases.getReleases.mockResolvedValueOnce({
+        releases: [
+          {
+            version: '2.0.0',
+          },
+        ],
+      });
+      // FIXME: explicit assert condition
+      expect((await lookup.lookupUpdates(config)).updates).toMatchSnapshot();
     });
   });
 });
