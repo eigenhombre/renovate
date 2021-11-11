@@ -43,7 +43,7 @@ const vueJson = loadJsonFixture('vue.json', fixtureRoot);
 const webpackJson = loadJsonFixture('webpack.json', fixtureRoot);
 
 const docker = mocked(datasourceDocker) as any;
-// docker.defaultRegistryUrls = ['https://index.docker.io'];
+docker.defaultRegistryUrls = ['https://index.docker.io'];
 const rubygems = mocked(datasourceRubygems) as any;
 const githubReleases = mocked(datasourceGithubReleases);
 
@@ -1422,10 +1422,9 @@ describe('workers/repository/process/lookup/index', () => {
       });
       const res = await lookup.lookupUpdates(config);
       expect(res.updates).toHaveLength(1);
+      expect(res.updates[0]['newVersion']).toEqual('6.14.2');
     });
     it('misses update with revoked current version', async () => {
-      // FIXME: Should detect this update event if datasource does not have our
-      // current version.
       config.currentValue = '~> 6.0.0';
       config.datasource = datasourceRubygemsId;
       config.depName = 'some-dep';
@@ -1439,21 +1438,44 @@ describe('workers/repository/process/lookup/index', () => {
         ],
       });
       const res = await lookup.lookupUpdates(config);
+      // FIXME: Should have detected this update event if datasource
+      // does not have our current version!
       expect(res.updates).toHaveLength(0);
     });
     it('misses update with revoked current version 2', async () => {
-      config.currentValue = '1.4.4';
+      config.currentValue = '~> 6.0.0';
       config.depName = 'some/action';
+      config.lockedVersion = '6.0.0';
       config.datasource = datasourceGithubReleases.id;
       githubReleases.getReleases.mockResolvedValueOnce({
         releases: [
           {
-            version: '2.0.0',
+            version: '6.0.0',
+          },
+          {
+            version: '6.14.2',
           },
         ],
       });
-      // FIXME: explicit assert condition
-      expect((await lookup.lookupUpdates(config)).updates).toMatchSnapshot();
+      const res = await lookup.lookupUpdates(config);
+      expect(res.updates).toHaveLength(1);
+    });
+    it('misses update with revoked current version 2', async () => {
+      config.currentValue = '~> 6.0.0';
+      config.depName = 'some/action';
+      config.lockedVersion = '6.0.0';
+      config.datasource = datasourceGithubReleases.id;
+      githubReleases.getReleases.mockResolvedValueOnce({
+        releases: [
+          {
+            version: '6.14.2',
+          },
+        ],
+      });
+      // FIXME: Should have detected this update event if datasource
+      // does not have our current version!
+      const res = await lookup.lookupUpdates(config);
+      expect(res.updates).toHaveLength(0);
     });
   });
 });
