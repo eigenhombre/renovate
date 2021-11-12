@@ -1399,5 +1399,40 @@ describe('workers/repository/process/lookup/index', () => {
       // FIXME: explicit assert condition
       expect(res).toMatchSnapshot();
     });
+    it('detects update with existing current version', async () => {
+      config.currentValue = '^6.0.0';
+      config.depName = 'some/action';
+      config.lockedVersion = '6.0.0';
+      config.datasource = datasourceGithubReleases.id;
+      githubReleases.getReleases.mockResolvedValueOnce({
+        releases: [
+          {
+            version: '6.0.0',
+          },
+          {
+            version: '7.0.0',
+          },
+        ],
+      });
+      const res = await lookup.lookupUpdates(config);
+      expect(res.updates).toHaveLength(1);
+      expect(res.updates[0].newVersion).toEqual('7.0.0');
+    });
+    it('detects update with revoked/missing current version', async () => {
+      config.currentValue = '^6.0.0';
+      config.depName = 'some/action';
+      config.lockedVersion = '6.0.0';
+      config.datasource = datasourceGithubReleases.id;
+      githubReleases.getReleases.mockResolvedValueOnce({
+        releases: [
+          {
+            version: '7.0.0',
+          },
+        ],
+      });
+      const res = await lookup.lookupUpdates(config);
+      expect(res.updates).toHaveLength(1);
+      expect(res.updates[0].newVersion).toEqual('7.0.0');
+    });
   });
 });

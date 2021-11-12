@@ -42,5 +42,7 @@ export function getCurrentVersion(
     return versioning.minSatisfyingVersion(useVersions, currentValue);
   }
   // Use the highest version in the current range
-  return versioning.getSatisfyingVersion(useVersions, currentValue);
+  return (
+    versioning.getSatisfyingVersion(useVersions, currentValue) || lockedVersion
+  );
 }
